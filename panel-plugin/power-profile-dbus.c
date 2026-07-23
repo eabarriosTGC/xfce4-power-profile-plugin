@@ -230,7 +230,7 @@ xfpm_power_profile_dbus_set_active (PowerProfileDBus *dbus,
     if (dbus->proxy == NULL)
         return;
 
-    g_dbus_proxy_call (
+    g_dbus_proxy_call_sync (
         dbus->proxy,
         "org.freedesktop.DBus.Properties.Set",
         g_variant_new ("(ssv)", PPD_INTERFACE, "ActiveProfile",
@@ -238,8 +238,7 @@ xfpm_power_profile_dbus_set_active (PowerProfileDBus *dbus,
         G_DBUS_CALL_FLAGS_NONE,
         -1,
         NULL,   /* cancellable */
-        NULL,   /* callback (fire-and-forget) */
-        NULL    /* user_data */
+        NULL    /* error (fire-and-forget) */
     );
 }
 
