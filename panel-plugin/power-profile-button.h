@@ -7,7 +7,7 @@
 G_BEGIN_DECLS
 
 #define XFPM_TYPE_POWER_PROFILE_BUTTON (xfpm_power_profile_button_get_type ())
-G_DECLARE_FINAL_TYPE (PowerProfileButton, xfpm_power_profile_button, XFPM, POWER_PROFILE_BUTTON, GtkToggleButton)
+G_DECLARE_FINAL_TYPE (PowerProfileButton, xfpm_power_profile_button, XFPM, POWER_PROFILE_BUTTON, GtkButton)
 
 GtkWidget* xfpm_power_profile_button_new (PowerProfileDBus *dbus);
 
