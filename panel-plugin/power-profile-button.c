@@ -15,13 +15,6 @@
 
 #include <libxfce4util/libxfce4util.h>
 #include <string.h>
-#include <stdio.h>
-
-/*  debug logging  */
-#define DBG_LOG(fmt, ...) do { \
-    FILE *_dbg = fopen ("/tmp/ppd-debug.log", "a"); \
-    if (_dbg) { fprintf (_dbg, "[ppd] " fmt "\n", ##__VA_ARGS__); fclose (_dbg); } \
-} while (0)
 
 /*  Icon names for each profile */
 #define ICON_PERFORMANCE  "power-profile-performance-symbolic"
@@ -58,22 +51,17 @@ on_menu_item_activate (GtkMenuItem *mi, gpointer data)
 {
     PowerProfileButton *btn = (PowerProfileButton *)data;
     const gchar *profile = g_object_get_data (G_OBJECT (mi), "profile-name");
-    DBG_LOG ("Menu item activated, profile='%s'", profile ? profile : "(null)");
 
     if (!profile)
     {
-        DBG_LOG ("ERROR: no profile data on menu item");
         return;
     }
     if (!btn->dbus)
     {
-        DBG_LOG ("ERROR: dbus is NULL");
         return;
     }
 
-    DBG_LOG ("Calling set_active('%s')", profile);
     xfpm_power_profile_dbus_set_active (btn->dbus, profile);
-    DBG_LOG ("set_active returned");
 }
 
 /*  rebuild the popup menu  */
@@ -85,7 +73,6 @@ xfpm_power_profile_button_rebuild_menu (PowerProfileButton *button)
     GtkWidget *item;
     guint i;
 
-    DBG_LOG ("rebuild_menu start");
 
     if (button->menu)
         gtk_widget_destroy (button->menu);
@@ -94,7 +81,6 @@ xfpm_power_profile_button_rebuild_menu (PowerProfileButton *button)
 
     if (button->dbus == NULL || !xfpm_power_profile_dbus_is_available (button->dbus))
     {
-        DBG_LOG ("PPD not available");
         item = gtk_menu_item_new_with_label (_("Power Profiles not available"));
         gtk_widget_set_sensitive (item, FALSE);
         gtk_menu_shell_append (GTK_MENU_SHELL (button->menu), item);
@@ -104,14 +90,12 @@ xfpm_power_profile_button_rebuild_menu (PowerProfileButton *button)
 
     profiles = xfpm_power_profile_dbus_get_profiles (button->dbus);
     active = xfpm_power_profile_dbus_get_active (button->dbus);
-    DBG_LOG ("Active profile: %s, %d profiles available", active, profiles->len);
 
     for (i = 0; i < profiles->len; i++)
     {
         const gchar *name = g_ptr_array_index (profiles, i);
         gboolean is_active = (g_strcmp0 (name, active) == 0);
 
-        DBG_LOG ("Creating item %d: '%s' (active=%d)", i, name, is_active);
 
         /* Use check menu item so we can show the active state */
         item = gtk_check_menu_item_new_with_label (name);
@@ -132,7 +116,6 @@ xfpm_power_profile_button_rebuild_menu (PowerProfileButton *button)
 
     g_ptr_array_unref (profiles);
     gtk_widget_show_all (button->menu);
-    DBG_LOG ("rebuild_menu done");
 }
 
 /*  update the icon + tooltip  */
@@ -169,7 +152,6 @@ on_profile_changed (PowerProfileDBus   *dbus,
                     const gchar        *profile,
                     PowerProfileButton *button)
 {
-    DBG_LOG ("profile-changed signal: '%s'", profile);
     (void) dbus;
     (void) profile;
     xfpm_power_profile_button_update (button);
@@ -179,7 +161,6 @@ on_profile_changed (PowerProfileDBus   *dbus,
 static void
 on_button_clicked (GtkButton *btn, PowerProfileButton *button)
 {
-    DBG_LOG ("Button clicked, rebuilding menu...");
     xfpm_power_profile_button_rebuild_menu (button);
     gtk_menu_popup_at_widget (GTK_MENU (button->menu),
                               GTK_WIDGET (btn),
@@ -196,7 +177,6 @@ xfpm_power_profile_button_init (PowerProfileButton *button)
     button->dbus = NULL;
     button->image = NULL;
     button->menu = NULL;
-    DBG_LOG ("Button init");
 }
 
 static void
@@ -223,11 +203,6 @@ xfpm_power_profile_button_new (PowerProfileDBus *dbus)
 {
     PowerProfileButton *button;
 
-    /* Clean old log */
-    FILE *f = fopen ("/tmp/ppd-debug.log", "w");
-    if (f) fclose (f);
-    DBG_LOG ("=== Plugin button created, dbus=%p ===", (void *)dbus);
-
     button = g_object_new (XFPM_TYPE_POWER_PROFILE_BUTTON, NULL);
 
     if (dbus)
@@ -247,6 +222,5 @@ xfpm_power_profile_button_new (PowerProfileDBus *dbus)
 
     xfpm_power_profile_button_update (button);
 
-    DBG_LOG ("Button created successfully");
     return GTK_WIDGET (button);
 }

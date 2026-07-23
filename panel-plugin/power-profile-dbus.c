@@ -14,12 +14,6 @@
 #include "power-profile-dbus.h"
 
 #include <string.h>
-#include <stdio.h>
-
-#define DBG_LOG(fmt, ...) do { \
-    FILE *_dbg = fopen ("/tmp/ppd-debug.log", "a"); \
-    if (_dbg) { fprintf (_dbg, "[ppd-dbus] " fmt "\n", ##__VA_ARGS__); fclose (_dbg); } \
-} while (0)
 
 /* D-Bus interface constants */
 #define PPD_BUS_NAME      "net.hadess.PowerProfiles"
@@ -239,7 +233,6 @@ xfpm_power_profile_dbus_set_active (PowerProfileDBus *dbus,
     if (dbus->proxy == NULL)
         return;
 
-    DBG_LOG ("Setting active profile to '%s'", profile);
 
     result = g_dbus_proxy_call_sync (
         dbus->proxy,
@@ -254,12 +247,10 @@ xfpm_power_profile_dbus_set_active (PowerProfileDBus *dbus,
 
     if (error != NULL)
     {
-        DBG_LOG ("Failed to set profile to '%s': %s", profile, error->message);
         g_error_free (error);
     }
     else
     {
-        DBG_LOG ("Successfully set profile to '%s'", profile);
         if (result != NULL)
             g_variant_unref (result);
 
