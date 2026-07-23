@@ -1,0 +1,10 @@
+[Xfce Panel]
+Name=Power Profile Indicator
+Name[es]=Indicador de Perfil de Energía
+Comment=Switch between power profiles (performance, balanced, power-saver)
+Comment[es]=Cambia entre perfiles de energía (rendimiento, equilibrado, ahorrador)
+Icon=power-profile-balanced-symbolic
+Type=X-XFCE-PanelPlugin
+X-XFCE-Module=xfce4-power-profile-plugin
+X-XFCE-Internal=FALSE
+X-XFCE-API=2.0
