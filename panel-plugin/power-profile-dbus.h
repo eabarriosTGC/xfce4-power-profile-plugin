@@ -10,6 +10,7 @@ G_DECLARE_FINAL_TYPE (PowerProfileDBus, xfpm_power_profile_dbus, XFPM, POWER_PRO
 
 PowerProfileDBus*  xfpm_power_profile_dbus_new           (void);
 const gchar*       xfpm_power_profile_dbus_get_active     (PowerProfileDBus *dbus);
+const gchar*       xfpm_power_profile_dbus_get_degraded_reason (PowerProfileDBus *dbus);
 void               xfpm_power_profile_dbus_set_active     (PowerProfileDBus *dbus, const gchar *profile);
 GPtrArray*         xfpm_power_profile_dbus_get_profiles   (PowerProfileDBus *dbus);
 gboolean           xfpm_power_profile_dbus_is_available   (PowerProfileDBus *dbus);

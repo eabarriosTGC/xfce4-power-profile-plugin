@@ -20,6 +20,7 @@
 #define PPD_XFCONF_CHANNEL "xfce4-power-profile-plugin"
 #define PROP_ON_AC      "/profile-on-ac"
 #define PROP_ON_BATTERY "/profile-on-battery"
+#define PROP_AUTO_SWITCH "/auto-switch-enabled"
 
 static void
 xfpm_power_profile_dialogs_fill_combo (GtkComboBox *combo)
@@ -77,6 +78,7 @@ xfpm_power_profile_dialogs_show (GtkWindow *parent)
     GtkWidget *lbl_ac, *combo_ac, *lbl_bat, *combo_bat;
     XfconfChannel *channel;
     gchar *ac_val, *bat_val;
+    gboolean auto_switch;
 
     if (!xfconf_init (NULL)) { /* already initialized */ }
 
@@ -85,6 +87,7 @@ xfpm_power_profile_dialogs_show (GtkWindow *parent)
     /* Read current values */
     ac_val = xfconf_channel_get_string (channel, PROP_ON_AC, "balanced");
     bat_val = xfconf_channel_get_string (channel, PROP_ON_BATTERY, "balanced");
+    auto_switch = xfconf_channel_get_bool (channel, PROP_AUTO_SWITCH, FALSE);
 
     /* Build dialog */
     dialog = gtk_dialog_new_with_buttons (
@@ -126,13 +129,18 @@ xfpm_power_profile_dialogs_show (GtkWindow *parent)
     gtk_grid_attach (GTK_GRID (grid), lbl_bat,   0, 1, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), combo_bat, 1, 1, 1, 1);
 
+    /* Auto-switch checkbox */
+    GtkWidget *check_auto = gtk_check_button_new_with_mnemonic (
+        _("_Enable automatic profile switching"));
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (check_auto), auto_switch);
+    gtk_grid_attach (GTK_GRID (grid), check_auto, 0, 2, 2, 1);
+
     /* Info note about auto-switch */
-    GtkWidget *note = gtk_label_new (_("Note: These are reference defaults.\n"
-                                        "Auto-switching is handled by\n"
-                                        "xfce4-power-manager, not this plugin."));
+    GtkWidget *note = gtk_label_new (_("When enabled, the plugin applies the profile\n"
+                                       "above automatically on AC/battery change."));
     gtk_label_set_justify (GTK_LABEL (note), GTK_JUSTIFY_CENTER);
     gtk_widget_set_opacity (note, 0.7);
-    gtk_grid_attach (GTK_GRID (grid), note, 0, 2, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), note, 0, 3, 2, 1);
 
     gtk_widget_show_all (dialog);
 
@@ -161,6 +169,9 @@ xfpm_power_profile_dialogs_show (GtkWindow *parent)
             xfconf_channel_set_string (channel, PROP_ON_BATTERY, val);
             g_free (val);
         }
+
+        xfconf_channel_set_bool (channel, PROP_AUTO_SWITCH,
+            gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (check_auto)));
     }
 
     gtk_widget_destroy (dialog);

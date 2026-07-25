@@ -2,6 +2,7 @@ plugin_name = 'xfce4-power-profile-plugin'
 plugin_sources = [
   'power-profile-plugin.c',
   'power-profile-dbus.c',
+  'power-profile-upower.c',
   'power-profile-button.c',
   'power-profile-dialogs.c',
 ]
@@ -9,6 +10,7 @@ plugin_sources = [
 plugin_headers = [
   'power-profile-plugin.h',
   'power-profile-dbus.h',
+  'power-profile-upower.h',
   'power-profile-button.h',
   'power-profile-dialogs.h',
 ]

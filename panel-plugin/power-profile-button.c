@@ -141,7 +141,12 @@ xfpm_power_profile_button_update (PowerProfileButton *button)
     gtk_image_set_from_icon_name (GTK_IMAGE (button->image),
                                   icon_name, GTK_ICON_SIZE_MENU);
 
-    tooltip = g_strdup_printf (_("Power Profile: %s"), profile);
+    const gchar *degraded = xfpm_power_profile_dbus_get_degraded_reason (button->dbus);
+    if (degraded && degraded[0] != '\0')
+        tooltip = g_strdup_printf (_("Power Profile: %s (degraded: %s)"), profile, degraded);
+    else
+        tooltip = g_strdup_printf (_("Power Profile: %s"), profile);
+
     gtk_widget_set_tooltip_text (GTK_WIDGET (button), tooltip);
     g_free (tooltip);
 }
@@ -217,8 +222,14 @@ xfpm_power_profile_button_new (PowerProfileDBus *dbus)
                       G_CALLBACK (on_button_clicked), button);
 
     if (dbus)
-        g_signal_connect (dbus, "profile-changed",
-                          G_CALLBACK (on_profile_changed), button);
+    {
+        g_signal_connect_object (dbus, "profile-changed",
+                                 G_CALLBACK (on_profile_changed), button,
+                                 (GConnectFlags) 0);
+        g_signal_connect_object (dbus, "degraded-changed",
+                                 G_CALLBACK (on_profile_changed), button,
+                                 (GConnectFlags) 0);
+    }
 
     xfpm_power_profile_button_update (button);
 

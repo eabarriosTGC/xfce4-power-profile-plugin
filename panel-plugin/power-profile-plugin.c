@@ -12,6 +12,7 @@
 
 #include "power-profile-plugin.h"
 #include "power-profile-dbus.h"
+#include "power-profile-upower.h"
 #include "power-profile-button.h"
 #include "power-profile-dialogs.h"
 
@@ -22,6 +23,7 @@ struct _XfpmPowerProfilePlugin
 {
     XfcePanelPlugin  parent;
     PowerProfileDBus *dbus;
+    PowerProfileUPower *upower;
     GtkWidget        *button;
 };
 
@@ -63,6 +65,7 @@ xfpm_power_profile_plugin_finalize (GObject *object)
 {
     XfpmPowerProfilePlugin *plugin = XFPM_POWER_PROFILE_PLUGIN (object);
     g_clear_object (&plugin->dbus);
+    g_clear_object (&plugin->upower);
     G_OBJECT_CLASS (xfpm_power_profile_plugin_parent_class)->finalize (object);
 }
 
@@ -72,6 +75,7 @@ static void
 xfpm_power_profile_plugin_init (XfpmPowerProfilePlugin *plugin)
 {
     plugin->dbus = NULL;
+    plugin->upower = NULL;
     plugin->button = NULL;
 }
 
@@ -86,6 +90,34 @@ xfpm_power_profile_plugin_class_init (XfpmPowerProfilePluginClass *klass)
     panel_class->configure_plugin = xfpm_power_profile_plugin_configure_plugin;
 }
 
+/*  ---------- UPower auto-switch ----------  */
+
+static void
+on_battery_changed (PowerProfileUPower     *upower,
+                    gboolean                on_battery,
+                    XfpmPowerProfilePlugin *plugin)
+{
+    XfconfChannel *channel;
+    gchar *profile;
+    gboolean auto_switch;
+    (void) upower;
+
+    if (plugin->dbus == NULL)
+        return;
+
+    channel = xfconf_channel_get ("xfce4-power-profile-plugin");
+    auto_switch = xfconf_channel_get_bool (channel, "/auto-switch-enabled", FALSE);
+
+    if (!auto_switch)
+        return;
+
+    profile = xfconf_channel_get_string (channel,
+        on_battery ? "/profile-on-battery" : "/profile-on-ac", "balanced");
+
+    xfpm_power_profile_dbus_set_active (plugin->dbus, profile);
+    g_free (profile);
+}
+
 /*  ---------- public ----------  */
 
 static void
@@ -98,6 +130,21 @@ xfpm_power_profile_plugin_construct (XfcePanelPlugin *panel_plugin)
 
     /* Connect to power-profiles-daemon (may return NULL if not running) */
     plugin->dbus = xfpm_power_profile_dbus_new ();
+
+    /* Connect to UPower for AC/battery detection */
+    plugin->upower = xfpm_power_profile_upower_new ();
+
+    if (plugin->upower)
+    {
+        g_signal_connect_object (plugin->upower, "on-battery-changed",
+                                 G_CALLBACK (on_battery_changed), plugin,
+                                 (GConnectFlags) 0);
+
+        /* Apply the correct profile right at startup */
+        on_battery_changed (plugin->upower,
+                            xfpm_power_profile_upower_get_on_battery (plugin->upower),
+                            plugin);
+    }
 
     /* Create the button widget */
     plugin->button = xfpm_power_profile_button_new (plugin->dbus);

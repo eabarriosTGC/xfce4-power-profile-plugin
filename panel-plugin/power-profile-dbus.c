@@ -26,12 +26,14 @@ struct _PowerProfileDBus
     GObject        parent;
     GDBusProxy    *proxy;
     gchar         *active_profile;
+    gchar         *degraded_reason;  /* NULL o vacío = no degradado */
     GPtrArray     *profiles;     /* array of owned strings */
 };
 
 enum
 {
     SIGNAL_PROFILE_CHANGED,
+    SIGNAL_DEGRADED_CHANGED,
     SIGNAL_LAST
 };
 
@@ -108,6 +110,32 @@ xfpm_power_profile_dbus_update_active (PowerProfileDBus *dbus)
     g_variant_unref (result);
 }
 
+static void
+xfpm_power_profile_dbus_update_degraded (PowerProfileDBus *dbus)
+{
+    GVariant *result;
+    GVariant *value;
+    const gchar *reason;
+
+    result = g_dbus_proxy_call_sync (
+        dbus->proxy, "org.freedesktop.DBus.Properties.Get",
+        g_variant_new ("(ss)", PPD_INTERFACE, "PerformanceDegraded"),
+        G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL
+    );
+
+    if (result == NULL)
+        return;
+
+    value = g_variant_get_variant (g_variant_get_child_value (result, 0));
+    reason = g_variant_get_string (value, NULL);
+
+    g_free (dbus->degraded_reason);
+    dbus->degraded_reason = g_strdup (reason);
+
+    g_variant_unref (value);
+    g_variant_unref (result);
+}
+
 /* ---------- GObject machinery ---------- */
 
 static void
@@ -115,6 +143,7 @@ xfpm_power_profile_dbus_init (PowerProfileDBus *dbus)
 {
     dbus->proxy = NULL;
     dbus->active_profile = NULL;
+    dbus->degraded_reason = NULL;
     dbus->profiles = NULL;
 }
 
@@ -123,6 +152,7 @@ xfpm_power_profile_dbus_finalize (GObject *object)
 {
     PowerProfileDBus *dbus = XFPM_POWER_PROFILE_DBUS (object);
     g_free (dbus->active_profile);
+    g_free (dbus->degraded_reason);
     if (dbus->profiles)
         g_ptr_array_unref (dbus->profiles);
     g_clear_object (&dbus->proxy);
@@ -138,21 +168,31 @@ on_properties_changed (GDBusProxy *proxy,
 {
     PowerProfileDBus *dbus = XFPM_POWER_PROFILE_DBUS (user_data);
     GVariant *active_var;
-    const gchar *new_profile;
+    GVariant *degraded_var;
     (void) proxy;
     (void) invalidated;
 
     active_var = g_variant_lookup_value (changed_properties, "ActiveProfile",
                                           G_VARIANT_TYPE_STRING);
-    if (active_var == NULL)
-        return;
+    if (active_var != NULL)
+    {
+        const gchar *new_profile = g_variant_get_string (active_var, NULL);
+        g_free (dbus->active_profile);
+        dbus->active_profile = g_strdup (new_profile);
+        g_variant_unref (active_var);
+        g_signal_emit (dbus, signals[SIGNAL_PROFILE_CHANGED], 0, dbus->active_profile);
+    }
 
-    new_profile = g_variant_get_string (active_var, NULL);
-    g_free (dbus->active_profile);
-    dbus->active_profile = g_strdup (new_profile);
-    g_variant_unref (active_var);
-
-    g_signal_emit (dbus, signals[SIGNAL_PROFILE_CHANGED], 0, dbus->active_profile);
+    degraded_var = g_variant_lookup_value (changed_properties, "PerformanceDegraded",
+                                            G_VARIANT_TYPE_STRING);
+    if (degraded_var != NULL)
+    {
+        const gchar *reason = g_variant_get_string (degraded_var, NULL);
+        g_free (dbus->degraded_reason);
+        dbus->degraded_reason = g_strdup (reason);
+        g_variant_unref (degraded_var);
+        g_signal_emit (dbus, signals[SIGNAL_DEGRADED_CHANGED], 0, dbus->degraded_reason);
+    }
 }
 
 static void
@@ -163,6 +203,15 @@ xfpm_power_profile_dbus_class_init (PowerProfileDBusClass *klass)
 
     signals[SIGNAL_PROFILE_CHANGED] = g_signal_new (
         "profile-changed",
+        XFPM_TYPE_POWER_PROFILE_DBUS,
+        G_SIGNAL_RUN_FIRST,
+        0, NULL, NULL,
+        g_cclosure_marshal_VOID__STRING,
+        G_TYPE_NONE, 1, G_TYPE_STRING
+    );
+
+    signals[SIGNAL_DEGRADED_CHANGED] = g_signal_new (
+        "degraded-changed",
         XFPM_TYPE_POWER_PROFILE_DBUS,
         G_SIGNAL_RUN_FIRST,
         0, NULL, NULL,
@@ -205,6 +254,7 @@ xfpm_power_profile_dbus_new (void)
     /* Read initial state */
     xfpm_power_profile_dbus_update_active (dbus);
     xfpm_power_profile_dbus_update_profiles (dbus);
+    xfpm_power_profile_dbus_update_degraded (dbus);
 
     /* Listen for changes */
     g_signal_connect (proxy, "g-properties-changed",
@@ -247,6 +297,8 @@ xfpm_power_profile_dbus_set_active (PowerProfileDBus *dbus,
 
     if (error != NULL)
     {
+        g_warning ("power-profile-plugin: failed to set profile '%s': %s",
+                   profile, error->message);
         g_error_free (error);
     }
     else
@@ -281,4 +333,11 @@ xfpm_power_profile_dbus_is_available (PowerProfileDBus *dbus)
 {
     g_return_val_if_fail (XFPM_IS_POWER_PROFILE_DBUS (dbus), FALSE);
     return dbus->proxy != NULL;
+}
+
+const gchar*
+xfpm_power_profile_dbus_get_degraded_reason (PowerProfileDBus *dbus)
+{
+    g_return_val_if_fail (XFPM_IS_POWER_PROFILE_DBUS (dbus), "");
+    return dbus->degraded_reason ? dbus->degraded_reason : "";
 }
