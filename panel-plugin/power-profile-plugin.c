@@ -24,6 +24,7 @@ struct _XfpmPowerProfilePlugin
     XfcePanelPlugin  parent;
     PowerProfileDBus *dbus;
     PowerProfileUPower *upower;
+    PowerProfileBattery *battery;
     GtkWidget        *button;
 };
 
@@ -66,6 +67,7 @@ xfpm_power_profile_plugin_finalize (GObject *object)
     XfpmPowerProfilePlugin *plugin = XFPM_POWER_PROFILE_PLUGIN (object);
     g_clear_object (&plugin->dbus);
     g_clear_object (&plugin->upower);
+    g_clear_object (&plugin->battery);
     G_OBJECT_CLASS (xfpm_power_profile_plugin_parent_class)->finalize (object);
 }
 
@@ -76,6 +78,7 @@ xfpm_power_profile_plugin_init (XfpmPowerProfilePlugin *plugin)
 {
     plugin->dbus = NULL;
     plugin->upower = NULL;
+    plugin->battery = NULL;
     plugin->button = NULL;
 }
 
@@ -118,6 +121,18 @@ on_battery_changed (PowerProfileUPower     *upower,
     g_free (profile);
 }
 
+/*  ---------- battery estimator callback ----------  */
+
+static void
+on_estimate_changed (PowerProfileBattery    *battery,
+                     gdouble                 seconds,
+                     XfpmPowerProfilePlugin *plugin)
+{
+    (void) battery;
+    if (plugin->button != NULL)
+        xfpm_power_profile_button_set_time_estimate (plugin->button, seconds);
+}
+
 /*  ---------- public ----------  */
 
 static void
@@ -144,6 +159,21 @@ xfpm_power_profile_plugin_construct (XfcePanelPlugin *panel_plugin)
         on_battery_changed (plugin->upower,
                             xfpm_power_profile_upower_get_on_battery (plugin->upower),
                             plugin);
+    }
+
+    /* Start the smoothed battery estimator */
+    plugin->battery = xfpm_power_profile_battery_new ();
+
+    if (plugin->battery && xfpm_power_profile_battery_is_available (plugin->battery))
+    {
+        g_signal_connect_object (plugin->battery, "estimate-changed",
+                                 G_CALLBACK (on_estimate_changed), plugin,
+                                 (GConnectFlags) 0);
+    }
+    else
+    {
+        g_debug ("power-profile-plugin: battery estimator not available, "
+                 "tooltip will not show smoothed time");
     }
 
     /* Create the button widget */

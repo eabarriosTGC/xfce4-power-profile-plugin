@@ -10,6 +10,7 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE (PowerProfileButton, xfpm_power_profile_button, XFPM, POWER_PROFILE_BUTTON, GtkButton)
 
 GtkWidget* xfpm_power_profile_button_new (PowerProfileDBus *dbus);
+void      xfpm_power_profile_button_set_time_estimate (GtkWidget *widget, gdouble seconds);
 
 G_END_DECLS
 

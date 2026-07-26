@@ -3,6 +3,7 @@ plugin_sources = [
   'power-profile-plugin.c',
   'power-profile-dbus.c',
   'power-profile-upower.c',
+  'power-profile-battery.c',
   'power-profile-button.c',
   'power-profile-dialogs.c',
 ]
@@ -11,6 +12,7 @@ plugin_headers = [
   'power-profile-plugin.h',
   'power-profile-dbus.h',
   'power-profile-upower.h',
+  'power-profile-battery.h',
   'power-profile-button.h',
   'power-profile-dialogs.h',
 ]

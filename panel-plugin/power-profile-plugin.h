@@ -6,6 +6,7 @@
 
 #include "power-profile-dbus.h"
 #include "power-profile-button.h"
+#include "power-profile-battery.h"
 
 G_BEGIN_DECLS
 

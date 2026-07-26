@@ -29,6 +29,7 @@ struct _PowerProfileButton
     GtkWidget        *image;
     GtkWidget        *menu;
     GPtrArray        *profile_names;  /* cache of profile name strings */
+    gdouble           time_estimate_seconds;   /* -1 = no data */
 };
 
 G_DEFINE_TYPE (PowerProfileButton, xfpm_power_profile_button, GTK_TYPE_BUTTON)
@@ -147,6 +148,25 @@ xfpm_power_profile_button_update (PowerProfileButton *button)
     else
         tooltip = g_strdup_printf (_("Power Profile: %s"), profile);
 
+    /* Append smoothed battery estimate if available */
+    if (button->time_estimate_seconds >= 0.0)
+    {
+        gint hours = (gint) (button->time_estimate_seconds / 3600.0);
+        gint minutes = (gint) ((button->time_estimate_seconds - hours * 3600.0) / 60.0);
+        gchar *time_str;
+
+        if (hours > 0)
+            time_str = g_strdup_printf (_("\n~%dh %02dm remaining (smooth)"),
+                                        hours, minutes);
+        else
+            time_str = g_strdup_printf (_("\n~%dm remaining (smooth)"), minutes);
+
+        gchar *combined = g_strconcat (tooltip, time_str, NULL);
+        g_free (tooltip);
+        g_free (time_str);
+        tooltip = combined;
+    }
+
     gtk_widget_set_tooltip_text (GTK_WIDGET (button), tooltip);
     g_free (tooltip);
 }
@@ -182,6 +202,7 @@ xfpm_power_profile_button_init (PowerProfileButton *button)
     button->dbus = NULL;
     button->image = NULL;
     button->menu = NULL;
+    button->time_estimate_seconds = -1.0;
 }
 
 static void
@@ -234,4 +255,24 @@ xfpm_power_profile_button_new (PowerProfileDBus *dbus)
     xfpm_power_profile_button_update (button);
 
     return GTK_WIDGET (button);
+}
+
+/*
+ * xfpm_power_profile_button_set_time_estimate:
+ * @widget: a #PowerProfileButton
+ * @seconds: smoothed time-to-empty in seconds, or -1 if unknown
+ *
+ * Updates the time estimate shown in the button's tooltip and
+ * triggers a tooltip refresh via xfpm_power_profile_button_update().
+ */
+void
+xfpm_power_profile_button_set_time_estimate (GtkWidget *widget, gdouble seconds)
+{
+    PowerProfileButton *button;
+
+    g_return_if_fail (XFPM_IS_POWER_PROFILE_BUTTON (widget));
+
+    button = XFPM_POWER_PROFILE_BUTTON (widget);
+    button->time_estimate_seconds = seconds;
+    xfpm_power_profile_button_update (button);
 }
